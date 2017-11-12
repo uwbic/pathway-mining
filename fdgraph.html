@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>Force directed graph</title>
+</head>
+
+<body>
+<div id="binSelector"></div>
+<svg width="2400" height="1000"></svg>
+</body>
+
+<link rel="stylesheet" href="graph.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="graph.js"></script>
+
+<script>
+
+
+var REACTION = "reaction";
+// var COMPOUND = 'compound';
+d3.json("graph.json", function(error, graph) {
+  if (error) throw error;
+  drawGraph(graph);
+  graph.nodes.filter(function(n){
+    return n.type === REACTION;
+  }).forEach(function(n){
+    if (!n.bins) return;
+    n.bins.forEach(function(b){
+      selectedBins[b.name] = false;
+    })
+  });
+  var count = 0;
+  // by default 10 bins are checked
+  for (var key in selectedBins){
+    if (count >= 10){
+      break;
+    }
+    selectedBins[key] = true;
+    count += 1;
+  }
+  generateCheckboxes();
+  updatePieCharts();
+});
+function initSelections(data) {
+  uniqueBins = Array.from(new Set(data.nodes.map(function(x){ return x.bin; })));
+  var binDict = {};
+  for (var i = 0; i < uniqueBins.length; i++){
+    binDict[uniqueBins[i]] = false;
+  }
+  return binDict;
+}
+
+
+// hash from binName -> true | false
+// e.g. {E_coli_bin -> true}
+var selectedBins = {};
+
+function generateCheckboxes(){
+  var bins = Object.keys(selectedBins);
+  //Creating the checkboxes.
+  bins.forEach(function(bin){
+    $('#binSelector').append(`
+      <div>
+        <input type="checkbox" class="BinCheckbox" id="${bin}Checkbox">
+        <label>${bin}</label>
+        <div class="circle" id="${bin}Legend" data-bin='${bin}'></div>
+      </div>
+      `)
+    // initialize check state
+    $('#' + bin + 'Checkbox').prop('checked', selectedBins[bin]);
+    //Adding the listener.
+    $('#' + bin + 'Checkbox').change(function(){
+      var selected = $('#' + bin + 'Checkbox').prop("checked");
+      selectedBins[bin] = selected;
+      updatePieCharts();
+    });
+  });
+}
+
+</script>
+</html>

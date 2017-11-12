@@ -1,0 +1,52 @@
+{ 
+	"nodes": [
+		{"id": "A", "type": "compound","bin": 1},
+		{"id": "B",
+		"type": "ortholog",
+		"bin": 1,
+		"bins":[
+		    {"name": "Nitrosomonas_bin",
+		    "count": 1},
+		    {"name": "Nitrospira_bin",
+		    "count": 1},
+		    {"name": "E_coli_bin",
+		    "count": 1}
+		  ]
+		},
+		{"id": "C", "type": "ortholog",
+			"bin": 1,
+		"bins":[
+		    {"name": "Nitrosomonas_bin",
+		    "count": 1},
+		    {"name": "Nitrospira_bin",
+		    "count": 1},
+		    {"name": "Nitros_blah",
+		    "count": 1}
+		  ]},
+		{"id": "D", "type": "ortholog","bin": 1,
+		"bins":[
+		    {"name": "Nitrosomonas_bin",
+		    "count": 1},
+		    {"name": "ABC_Bin",
+		    "count": 1},
+		    {"name": "E_coli_bin",
+		    "count": 1}
+		  ]},
+		{"id": "E", "type": "compound","bin": 3,
+		"bins":[
+		    {"name": "BCD_bin",
+		    "count": 1},
+		    {"name": "Nitrospira_bin",
+		    "count": 1},
+		    {"name": "E_coli_bin",
+		    "count": 1}
+		  ]}
+	],
+	"links": [
+		{"source": "A", "target": "B", "value": 1},
+		{"source": "A", "target": "C", "value": 1},
+		{"source": "C", "target": "D", "value": 1},
+		{"source": "C", "target": "E", "value": 1},
+		{"source": "B", "target": "E", "value": 1}
+	]
+}
