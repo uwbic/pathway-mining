@@ -45,6 +45,11 @@ body {
   text-anchor: middle;
 }
 
-.arc path {
-  stroke: #fff;
+.binNodeLine {
+  stroke: #eee;
+  stroke-width: 1px;
+}
+
+.line-highlighted{
+  stroke-width: 2.5px !important;
 }

@@ -3,12 +3,12 @@ var PIE_CHART_SIZE = 20;
 var svg = d3.select("svg"),
     width = +svg.attr("width"),
     height = +svg.attr("height");
-
-
+var binRadius = 500;
+var forceGraphRadius = 450;
 var simulation = d3.forceSimulation()
     .force("link", d3.forceLink().id(function(d) { return d.id; }))
-    .force("charge", d3.forceManyBody().strength(-500))
-    .force("center", d3.forceCenter(width / 2, height / 2));
+    .force("charge", d3.forceManyBody().strength(-200))
+    .force("center", d3.forceCenter(0,0));
 
 /**
  *
@@ -34,12 +34,31 @@ var simulation = d3.forceSimulation()
 
 var node; // global variable node, all g.node svg elements, includes all reactions and compounds
 
-function drawGraph(graph){
-  // binSelections = initSelections(graph);
-  // generateCheckboxes(binSelections);
 
+function drawGraph(graph, bins){
+
+
+  // circle layout
+  function circleLayout(bins){
+    var length = bins.length;
+    bins.forEach(function(b,index){
+      var radian = index * 1.0 /length * 2 * Math.PI;
+      var angle = index * 1.0 / length * 360;
+      var x = binRadius * Math.cos(radian);
+      var y = binRadius * Math.sin(radian);
+      b.x = x;
+      b.y = y;
+      b.angle = angle;
+    });
+  }
+  circleLayout(bins, binRadius);
+  var nameToBin = {};
+  bins.forEach(function(b){
+    nameToBin[b.name] = b;
+  });
   //Directed edges
-  svg.append("defs").append("marker")
+  svg
+    .append("defs").append("marker")
     .attr("id", "arrow")
     .attr("viewBox", "0 -5 10 10")
     .attr("refX", 10)
@@ -48,9 +67,74 @@ function drawGraph(graph){
     .attr("markerHeight", 10)
     .attr("orient", "auto")
   .append("svg:path")
-    .attr("d", "M0,-2L7,0L0,2");
+    .attr("d", "M0,-2L7,0L0,2")
+    ;
+  var mainGroup = svg
+    .append('g')
+    .attr('transform','translate('+width/2 + ',' + height/2 +')')
+    .attr('width', svg.attr('width'))
+    .attr('height', svg.attr('height'))
+    ;
 
-  var link = svg.append("g")
+  // drawing all bins around force directed graph
+  var texts = mainGroup
+    .append('g')
+    .classed('bin-label-group',true)
+    .selectAll('g.bin-label')
+    .data(bins)
+    .enter()
+    .append('g')
+    .classed('bin-label',true)
+    .attr('transform', function(d){
+      return 'rotate(' + (d.angle - 90) + ')translate('+binRadius+',0)' + 
+        (d.angle < 180?'':'rotate(180)')
+    })
+    .append('text')
+    .text(function(d){return d.name})
+    .style('text-anchor', function(d){return d.angle < 180? 'start':'end'})
+    ;
+
+  // need data bin <-> node
+  var binNodes = [];
+  function getBinLengthCutOff(nodes){
+    var lengths = graph
+      .nodes
+      .filter(function(n){return n.type === REACTION && n.bins && n.bins.length > 0;})
+      .map(function(n){return n.bins.length})
+      .sort()
+      .reverse();
+    return lengths[Math.floor(lengths.length * 0.1)];
+  }
+  var cutoff = getBinLengthCutOff(graph.nodes);
+  console.log('bin length cutoff', cutoff);
+  graph.nodes
+    .filter(function(n){return n.type === REACTION && n.bins;})
+    .forEach(function(n){
+      if (n.bins.length > 20) return;
+      n.bins.forEach(function(b){
+        binNodes.push({
+          'node': n,
+          'bin': nameToBin[b.name]
+        });
+      });
+    });
+
+  var binNodeLine = mainGroup
+    .append('g')
+    .classed('binNode',true)
+    .selectAll('g.binNodeLine')
+    .data(binNodes)
+    .enter()
+    .append('path')
+    .classed('binNodeLine',true)
+    .attr('d',function(d){
+      var b = d.bin;
+      var n = d.node;
+      return lineTo(b,n);
+    })
+
+    .attr('style','stroke:#eee; stroke-width: 1px;')
+  var link = mainGroup.append("g")
       .attr("class", "links")
     .selectAll("line")
     .data(graph.links)
@@ -59,7 +143,7 @@ function drawGraph(graph){
       .attr("marker-end", "url(#arrow)");
 
 
-  node = svg.append("g")
+  node = mainGroup.append("g")
       .attr("class", "nodes")
     .selectAll("circle")
     .data(graph.nodes)
@@ -68,12 +152,31 @@ function drawGraph(graph){
       .call(d3.drag()
         .on("start", dragstarted)
         .on("drag", dragged)
-        .on("end", dragended));
+        .on("end", dragended))
+      .on('mouseover',function(n){
+        d3
+          .selectAll('path.binNodeLine')
+          // get all binNodeLines corresponding to this node
+          .filter(function(d){
+            if (d.node === n){console.log(d);}
+            return d.node === n;
+          })
+          .attr('style','stroke:#aaa; stroke-width: 2.5px;')
+      })
+      .on('mouseout',function(n){
+        d3
+          .selectAll('path.binNodeLine')
+          // get all binNodeLines corresponding to this node
+          .filter(function(d){
+            return d.node === n;
+          })
+          .attr('style','stroke:#eee; stroke-width: 1px;')
+      });
 
   var circle = node
-    .filter(function(d){
-      return d.type !== REACTION;
-    })
+    // .filter(function(d){
+    //   return d.type !== REACTION;
+    // })
     .append('circle')
     .attr('r', PIE_CHART_SIZE/2)
     .attr('fill','#999');
@@ -95,12 +198,26 @@ function drawGraph(graph){
 
   function ticked() {
     link
-        .attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
+        .attr("x1", function(d) { return d.source.x = Math.sign(d.source.x) * Math.min(Math.abs(d.source.x), forceGraphRadius); })
+        .attr("y1", function(d) { return d.source.y = Math.sign(d.source.y) * Math.min(Math.abs(d.source.y), forceGraphRadius); })
+        .attr("x2", function(d) { return d.target.x = Math.sign(d.target.x) * Math.min(Math.abs(d.target.x), forceGraphRadius); })
+        .attr("y2", function(d) { return d.target.y = Math.sign(d.target.y) * Math.min(Math.abs(d.target.y), forceGraphRadius); });
 
-    node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+    node.attr("transform", function(d) {
+      // var radian = Math.atan(d.y/d.x);
+      // var radius = Math.sqrt(d.x*d.x + d.y*d.y);
+      // radius = Math.min(forceGraphRadius, radius);
+      // var x = Math.cos(radian) * radius;
+      // var y = Math.sin(radian) * radius;
+      var x =  Math.sign(d.x) * Math.min(Math.abs(d.x), forceGraphRadius)
+      d.x = x;
+      var y =  Math.sign(d.y) * Math.min(Math.abs(d.y), forceGraphRadius)
+      d.y = y;
+      return "translate(" + x + "," + y + ")"; 
+    });
+    binNodeLine.attr('d',function(d){
+      return lineTo(d.bin,d.node);
+    });
   }
 }
 
@@ -162,6 +279,21 @@ function dragended(d) {
   d.fy = null;
 }
 
+function lineTo(src,target){
+    var sx = src.x,
+      sy = src.y,
+      tx = target.x,
+      ty = target.y;
+    return formatStr('M {0},{1} L {2},{3}',sx,sy,tx,ty);
+}
 
-
+function formatStr(format) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return format.replace(/{(\d+)}/g, function(match, number) { 
+      return typeof args[number] != 'undefined'
+        ? args[number] 
+        : match
+      ;
+    });
+}
 

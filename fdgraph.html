@@ -8,7 +8,7 @@
 
 <body>
 <div id="binSelector"></div>
-<svg width="2400" height="1000"></svg>
+<svg width="1600" height="1600"></svg>
 </body>
 
 <link rel="stylesheet" href="graph.css">
@@ -20,18 +20,30 @@
 
 
 var REACTION = "reaction";
-// var COMPOUND = 'compound';
 d3.json("graph.json", function(error, graph) {
   if (error) throw error;
-  drawGraph(graph);
+  var binUnion = {};
+
+  var node_set = {};
+  graph.links.forEach(function(e){
+    node_set[e.source] = true;
+    node_set[e.target] = true;
+  });
+  graph.nodes = graph.nodes.filter(function(n){
+    return node_set[n.id];
+  });
+
   graph.nodes.filter(function(n){
     return n.type === REACTION;
   }).forEach(function(n){
     if (!n.bins) return;
     n.bins.forEach(function(b){
       selectedBins[b.name] = false;
+      binUnion[b.name] = b;
     })
   });
+  drawGraph(graph,Object.values(binUnion));
+
   var count = 0;
   // by default 10 bins are checked
   for (var key in selectedBins){
@@ -42,7 +54,7 @@ d3.json("graph.json", function(error, graph) {
     count += 1;
   }
   generateCheckboxes();
-  updatePieCharts();
+  // updatePieCharts();
 });
 function initSelections(data) {
   uniqueBins = Array.from(new Set(data.nodes.map(function(x){ return x.bin; })));
